@@ -721,14 +721,12 @@ struct CreateThumbnailData {
     RenderedBitmap* bmp = nullptr;
 
     ~CreateThumbnailData() {
-        logf("~CreateThumbnailData: deleting 0x%p filePath='%s' 0x%p\n", this, filePath, filePath);
         str::Free(filePath);
     }
 };
 
 static void CreateThumbnailFinish(CreateThumbnailData* d) {
     char* path = d->filePath;
-    logf("CreateThumbnailFinish: path: '%s', 0x%p, d: 0x%p, d->bmp: 0x%p\n", path, path, d, d->bmp);
     if (d->bmp) {
         SetThumbnail(gFileHistory.FindByPath(path), d->bmp);
     }
@@ -765,10 +763,8 @@ static void CreateThumbnailForFile(MainWindow* win, FileState* ds) {
     }
 
     auto size = Size(kThumbnailDx, kThumbnailDy);
-    char* filePath = str::Dup(win->ctrl->GetFilePath());
-    auto d = new CreateThumbnailData{filePath, nullptr};
-    logf("CreateThumbnailForFile: filePath: '%s', 0x%p, d: 0x%p\n", filePath, filePath, d);
-    // TODO: this leaks
+    auto d = new CreateThumbnailData{};
+    d->filePath = str::Dup(win->ctrl->GetFilePath());
     auto fn = NewFunc1(CreateThumbnailOnBitmapRendered, d);
     win->ctrl->CreateThumbnail(size, fn);
 }
@@ -4271,12 +4267,12 @@ static void OnFrameKeyEsc(MainWindow* win) {
         ToolbarUpdateStateForWindow(win, false);
         return;
     }
-    if (gGlobalPrefs->escToExit && CanCloseWindow(win)) {
-        CloseWindow(win, true, false);
-        return;
-    }
     if (win->presentation || win->isFullScreen) {
         ToggleFullScreen(win, win->presentation != PM_DISABLED);
+        return;
+    }
+    if (gGlobalPrefs->escToExit && CanCloseWindow(win)) {
+        CloseWindow(win, true, false);
         return;
     }
 }
@@ -5711,9 +5707,18 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
                 tab, "https://translate.google.com/?op=translate&sl=auto&tl=${userlang}&text=${selection}");
             break;
 
-        case CmdTranslateSelectionWithDeepL:
-            LaunchBrowserWithSelection(tab, "https://www.deepl.com/translator#-/${userlang}/${selection}");
-            break;
+        case CmdTranslateSelectionWithDeepL: {
+            // Note: we don't know if selected string is English but I don't know
+            // how to get deepl.com to auto-detect language
+            const char* lang = trans::GetCurrentLangCode();
+            const char* uri = "https://www.deepl.com/translator#en/${userlang}/${selection}";
+            if (str::Eq(lang, "en")) {
+                // it's pointless to translate from English to English
+                // this format will hopefully trigger auto-detection of user languge by deepl.com
+                uri = "https://www.deepl.com/translator#en/${selection}";
+            }
+            LaunchBrowserWithSelection(tab, uri);
+        } break;
 
         case CmdSearchSelectionWithGoogle:
             LaunchBrowserWithSelection(tab, "https://www.google.com/search?q=${selection}");
