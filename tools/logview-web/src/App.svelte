@@ -1,0 +1,476 @@
+<script>
+  import { version } from "./version";
+  import { onMount } from "svelte";
+  import { VList } from "virtua/svelte";
+
+  let autoScrollPaused = false;
+  let btnText = $state("pause scrolling (p)");
+  let filter = $state("");
+  let filterLC = $derived(filter.trim().toLowerCase());
+
+  /** @type {VList<{ id: number; size: string }}*/
+  let vlist = $state();
+
+  let hiliRegExp = $derived(makeHilightRegExp(filter));
+
+  /** @type {HTMLElement} */
+  // let logAreaEl;
+  /** @type {HTMLElement} */
+  let searchEl;
+
+  class TabInfo {
+    /** @type {number} */
+    appNo;
+    /** @type {string[]} */
+    logs = $state([]);
+    tabName = $state("logs");
+    constructor(no) {
+      this.appNo = no;
+    }
+  }
+
+  /** @type {TabInfo[]} */
+  let tabs = $state([]);
+
+  /** @type {number} */
+  let selectedTabIdx = $state(-1);
+
+  let filteredLogs = $derived(filterLogs(filterLC, selectedTabIdx));
+
+  $effect(() => {
+    if (!autoScrollPaused) {
+      let n = len(filteredLogs);
+      if (n > 0) {
+        vlist.scrollToIndex(n - 1);
+      }
+    }
+  });
+
+  function genLotsOfLogs() {
+    let no = 3798; // random but unique number
+    for (let i = 0; i < 10000; i++) {
+      let s = `this is a line number ${i}`;
+      plog(no, s);
+    }
+  }
+
+  /**
+   * @param {number} tabIdx
+   */
+  function closeTab(tabIdx) {
+    tabs.splice(tabIdx, 1);
+    if (len(tabs) === 0) {
+      selectedTabIdx = -1;
+      return;
+    }
+    // update selected tab
+    if (selectedTabIdx >= len(tabs)) {
+      --selectedTabIdx;
+    }
+  }
+  /**
+   * @param {KeyboardEvent} ev
+   */
+  function keydown(ev) {
+    if (ev.key === "/") {
+      if (searchEl) {
+        searchEl.focus();
+      }
+      ev.preventDefault();
+      return;
+    }
+    let isSearchFocused = document.activeElement === searchEl;
+    if (isSearchFocused) {
+      if (ev.key === "Escape") {
+        // if searchEl is focused, return focus to logAreaEl
+        searchEl.blur();
+        filter = "";
+        return;
+      }
+    } else {
+      if (ev.key === "p") {
+        togglePauseScrolling();
+        ev.preventDefault();
+        return;
+      }
+      let tabNo = ev.keyCode - "0".charCodeAt(0) - 1;
+      // console.log(ev.keyCode, tabNo);
+      if (tabNo >= 0 && tabNo < 9) {
+        if (len(tabs) > tabNo) {
+          selectedTabIdx = tabNo;
+        }
+      }
+    }
+  }
+
+  function fetchLogsIncrements() {
+    /**
+     * @param {Response} rsp
+     */
+    function handleRsp(rsp) {
+      if (!rsp.ok || rsp.status != 200) {
+        console.log("fetch failed:", rsp);
+        scheduleNextLogsIncrementalFetch(5000);
+        return;
+      }
+      function handleJSON(js) {
+        if (!Array.isArray(js)) {
+          console.log("unexpected json result, not array:", js);
+          scheduleNextLogsIncrementalFetch(1000);
+          return;
+        }
+        let n = len(js);
+        if (n === 0) {
+          scheduleNextLogsIncrementalFetch(100);
+          return;
+        }
+        let nLogs = n / 2;
+        console.log(`got ${nLogs} logs`);
+        for (let i = 0; i < n; i += 2) {
+          plog(js[i], js[i + 1]);
+        }
+        if (nLogs === 1000) {
+          // we got the max logs so re-get immediately
+          scheduleNextLogsIncrementalFetch(1);
+        } else {
+          scheduleNextLogsIncrementalFetch(1000);
+        }
+      }
+      rsp.json().then(handleJSON);
+    }
+    fetch("/api/getlogsincremental").then(handleRsp);
+  }
+
+  function scheduleNextLogsIncrementalFetch(timeout = 1000) {
+    setTimeout(fetchLogsIncrements, timeout);
+  }
+
+  onMount(() => {
+    window.addEventListener("keydown", keydown);
+    window.addEventListener("beforeunload", (ev) => {
+      // fetch("/kill", { method: "post" });
+    });
+    scheduleNextLogsIncrementalFetch();
+  });
+
+  /**
+   * @param {number} appNo
+   * @returns {TabInfo}
+   */
+  function findOrCreateTab(appNo) {
+    for (let tab of tabs) {
+      if (tab.appNo === appNo) {
+        return tab;
+      }
+    }
+    let tab = new TabInfo(appNo);
+    tabs.push(tab);
+    selectedTabIdx = len(tabs) - 1;
+    return tab;
+  }
+
+  /**
+   * @param {number} no
+   * @param {string} line
+   */
+  function plog(no, line) {
+    line = line.trim();
+    let tab = findOrCreateTab(no);
+    tab.logs.push(line);
+    if (line.startsWith("app: ")) {
+      tab.tabName = line.slice(4);
+    }
+  }
+
+  /**
+   * @param {number} n
+   * @returns {number[]}
+   */
+  function mkArrayOfNumbers(n) {
+    let res = Array(n);
+    for (let i = 0; i < n; i++) {
+      res[i] = i;
+    }
+    return res;
+  }
+
+  /**
+   * @param {string} filterLC
+   * @param {number} tabIdx
+   */
+  function filterLogs(filterLC, tabIdx) {
+    if (tabIdx < 0) {
+      return [];
+    }
+    let logs = tabs[tabIdx].logs;
+    let n = len(logs);
+    if (filterLC === "") {
+      return mkArrayOfNumbers(n);
+    }
+    let parts = filterLC.split(" ");
+    for (let i = 0; i < parts.length; i++) {
+      parts[i] = parts[i].trim();
+    }
+    let res = [];
+    for (let i = 0; i < n; i++) {
+      let line = logs[i];
+      if (matches(line, parts)) {
+        res.push(i);
+      }
+    }
+    return res;
+  }
+
+  /**
+   * @param {string} s
+   * @param {string[]} searchTerms
+   */
+  function matches(s, searchTerms) {
+    s = s.toLowerCase();
+    for (let term of searchTerms) {
+      if (!s.includes(term)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * @param {string} filter
+   * @returns {RegExp}
+   */
+  export function makeHilightRegExp(filter) {
+    let parts = filter.split(" ");
+    let a = [];
+    for (let s of parts) {
+      s = s.trim().toLowerCase();
+      let escaped = s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      a.push(escaped);
+    }
+    let s = a.join("|");
+    return new RegExp(`(${s})`, "gi");
+  }
+
+  export function hilightText(s, regexp) {
+    // console.log("hilightText:", s, regexp);
+    return s.replace(regexp, '<span class="hili">$1</span>');
+  }
+
+  let windowTitle = "Logview " + version;
+  // @ts-ignore
+  window.runtime?.WindowSetTitle(windowTitle);
+
+  function togglePauseScrolling() {
+    autoScrollPaused = !autoScrollPaused;
+    if (autoScrollPaused) {
+      btnText = "unpause scrolling (p)";
+    } else {
+      btnText = "pause scrolling (p)";
+    }
+  }
+
+  function len(o) {
+    return o ? o.length : 0;
+  }
+  function clearLogs() {
+    if (selectedTabIdx >= 0) {
+      tabs[selectedTabIdx].logs = [];
+    }
+  }
+
+  /**
+   * @param {number} tabIdx
+   */
+  function selectTab(tabIdx) {
+    selectedTabIdx = tabIdx;
+  }
+
+  function aboutClicked() {
+    let uri = "https://www.sumatrapdfreader.org/docs/Logview";
+    // @ts-ignore
+    window.runtime?.BrowserOpenURL(uri);
+  }
+  // @ts-ignore
+  //window.runtime.EventsOn("plog", plog);
+  function getKeyFilteredLogs(item, _) {
+    // console.log("getKeyFilteredLogs:", item, i);
+    return item;
+    // return filteredLogs[i];
+  }
+  function getLogsCount() {
+    if (selectedTabIdx < 0) {
+      return 0;
+    }
+    return len(tabs[selectedTabIdx].logs);
+  }
+</script>
+
+<main class="flex flex-col">
+  <div class="top">
+    <div style="flex-grow: 1"></div>
+    <input
+      type="text"
+      placeholder="filter /"
+      bind:this={searchEl}
+      bind:value={filter}
+    />
+    <button class="btn-pause" onclick={togglePauseScrolling}>{btnText}</button>
+    <button onclick={clearLogs}>clear</button>
+    <div>{len(filteredLogs)} out of {getLogsCount()}</div>
+    <div style="flex-grow: 1"></div>
+    <button class="hidden2" onclick={() => genLotsOfLogs()}
+      >gen test data</button
+    >
+    <button class="mr-1" onclick={aboutClicked}>about</button>
+  </div>
+
+  <div class="tabs">
+    {#each tabs as tab, idx}
+      {#if idx === selectedTabIdx}
+        <button class="tab tab-selected"
+          >{tab.tabName} <span class="kbd">[{idx + 1}]</span>
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <span onclick={() => closeTab(idx)} class="tab-close">×</span>
+        </button>
+      {:else}
+        <button onclick={() => selectTab(idx)} class="tab"
+          >{tab.tabName} <span class="kbd">[{idx + 1}]</span>
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <span onclick={() => closeTab(idx)} class="tab-close">×</span>
+        </button>
+      {/if}
+    {/each}
+  </div>
+
+  {#if selectedTabIdx < 0}
+    <div class="grow bg-white">
+      <div class="no-results">No logs yet</div>
+    </div>
+  {:else if len(filteredLogs) == 0}
+    {#if getLogsCount() == 0}
+      <div class="grow bg-white">
+        <div class="no-results">No logs yet</div>
+      </div>
+    {:else}
+      <div class="grow bg-white">
+        <div class="no-results">No results matching '<b>{filter}</b>'</div>
+      </div>
+    {/if}
+  {:else}
+    <VList
+      bind:this={vlist}
+      style="flex-grow: 1; font-family: monospace; background-color: white;"
+      data={filteredLogs}
+      getKey={getKeyFilteredLogs}
+    >
+      {#snippet children(item, index)}
+        {@const logs = tabs[selectedTabIdx].logs}
+        {@const line = logs[item]}
+        {#if filter === ""}
+          <span class="log-line">{line}</span>
+          <!-- <div class="log-line">{line}</div> -->
+        {:else}
+          {@const hili = hilightText(line, hiliRegExp)}
+          <span class="log-line">{@html hili}</span>
+          <!-- <div class="log-line">{@html hili}</div> -->
+        {/if}
+      {/snippet}
+    </VList>
+  {/if}
+</main>
+
+<style>
+  .flex {
+    display: flex;
+  }
+  .flex-col {
+    flex-direction: column;
+  }
+  .grow {
+    flex-grow: 1;
+  }
+  .bg-white {
+    background-color: white;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  .mr-1 {
+    margin-right: 0.25rem;
+  }
+
+  main {
+    min-height: 0;
+    height: 100vh;
+    overflow: auto;
+  }
+  button {
+    cursor: pointer;
+  }
+  .top {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    column-gap: 0.5rem;
+    padding-top: 4px;
+    padding-bottom: 6px;
+  }
+
+  .tabs {
+    display: flex;
+  }
+
+  .kbd {
+    color: gray;
+    margin-left: 0.25rem;
+  }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    border: 0;
+    padding: 4px 0.5rem;
+    cursor: pointer;
+    &:hover {
+      background-color: rgba(128, 128, 128, 0.2);
+    }
+  }
+  .tab-selected {
+    background-color: white;
+    cursor: default;
+    &:hover {
+      background-color: white;
+    }
+  }
+  .tab-close {
+    padding: 1px 4px;
+    &:hover {
+      background-color: rgba(128, 128, 128, 0.4);
+    }
+  }
+
+  .log-line {
+    white-space: pre-wrap;
+    word-break: break-all;
+    padding: 0px 0.5rem;
+    &:hover {
+      background-color: lightgray;
+    }
+  }
+  .no-results {
+    text-align: center;
+    font-size: 120%;
+    margin-top: 30%; /* from eyeballing */
+  }
+  .btn-pause {
+    min-width: 8rem;
+  }
+
+  :global(.hili) {
+    background-color: yellow;
+  }
+</style>

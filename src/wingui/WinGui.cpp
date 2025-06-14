@@ -322,9 +322,13 @@ bool Wnd::IsVisible() const {
 }
 
 void Wnd::Destroy() {
-    HwndDestroyWindowSafe(&hwnd);
+    // the order is important
+    // stop dispatching messages to this Wnd
+    WindowMapRemove(this);
+    // unsubclass while hwnd is still valid
     UnSubclass();
-    Cleanup();
+    // finally destroy hwnd
+    HwndDestroyWindowSafe(&hwnd);
 }
 
 LRESULT Wnd::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -3255,6 +3259,9 @@ void TabsCtrl::Paint(HDC hdc, RECT& rc) {
 
 HBITMAP TabsCtrl::RenderForDragging(int idx) {
     TabInfo* ti = GetTab(idx);
+    if (!ti) {
+        return nullptr;
+    }
     Bitmap bitmap(ti->r.dx, ti->r.dy);
     Graphics* gfx = Graphics::FromImage(&bitmap);
     // DrawString() on a bitmap does not work with CompositingModeSourceCopy - obscure bug.
@@ -3483,6 +3490,10 @@ LRESULT TabsCtrl::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 draggingTab = true;
                 TabInfo* thl = GetTab(hl);
                 HBITMAP hbmp = RenderForDragging(hl);
+                if (!hbmp) {
+                    logfa("TabsCtrl::WndProc: RenderForDragging failed for tab %d\n", hl);
+                    return 0;
+                }
                 HIMAGELIST himl = ImageList_Create(thl->r.dx, thl->r.dy, 0, 1, 0);
                 ImageList_Add(himl, hbmp, NULL);
                 ImageList_BeginDrag(himl, 0, grabLocation.x, grabLocation.y);

@@ -131,6 +131,9 @@ static StrVec gAllowedLinkProtocols;
 // on an in-document link); examples: "audio", "video", ...
 static StrVec gAllowedFileTypes;
 
+static const char* gNextPrevDir = nullptr;
+static StrVec gNextPrevDirCache; // cached files in gNextPrevDir
+
 static void CloseDocumentInCurrentTab(MainWindow*, bool keepUIEnabled, bool deleteModel);
 static void OnSidebarSplitterMove(Splitter::MoveEvent*);
 static void OnFavSplitterMove(Splitter::MoveEvent*);
@@ -721,14 +724,12 @@ struct CreateThumbnailData {
     RenderedBitmap* bmp = nullptr;
 
     ~CreateThumbnailData() {
-        logf("~CreateThumbnailData: deleting 0x%p filePath='%s' 0x%p\n", this, filePath, filePath);
         str::Free(filePath);
     }
 };
 
 static void CreateThumbnailFinish(CreateThumbnailData* d) {
     char* path = d->filePath;
-    logf("CreateThumbnailFinish: path: '%s', 0x%p, d: 0x%p, d->bmp: 0x%p\n", path, path, d, d->bmp);
     if (d->bmp) {
         SetThumbnail(gFileHistory.FindByPath(path), d->bmp);
     }
@@ -765,10 +766,8 @@ static void CreateThumbnailForFile(MainWindow* win, FileState* ds) {
     }
 
     auto size = Size(kThumbnailDx, kThumbnailDy);
-    char* filePath = str::Dup(win->ctrl->GetFilePath());
-    auto d = new CreateThumbnailData{filePath, nullptr};
-    logf("CreateThumbnailForFile: filePath: '%s', 0x%p, d: 0x%p\n", filePath, filePath, d);
-    // TODO: this leaks
+    auto d = new CreateThumbnailData{};
+    d->filePath = str::Dup(win->ctrl->GetFilePath());
     auto fn = NewFunc1(CreateThumbnailOnBitmapRendered, d);
     win->ctrl->CreateThumbnail(size, fn);
 }
@@ -2731,7 +2730,7 @@ void CloseWindow(MainWindow* win, bool quitIfLast, bool forceClose) {
 
     for (auto& tab : win->Tabs()) {
         if (tab->AsFixed()) {
-            tab->AsFixed()->dontRenderFlag = true;
+            tab->AsFixed()->pauseRendering = true;
         }
     }
 
@@ -3346,9 +3345,6 @@ static void OpenFile(MainWindow* win) {
     }
 }
 
-static StrVec gLastNextPrevFiles;
-const char* lastNextPrevFilesDir = nullptr;
-
 static void RemoveFailedFiles(StrVec& files) {
     for (char* path : gFilesFailedToOpen) {
         int idx = files.Find(path);
@@ -3359,18 +3355,16 @@ static void RemoveFailedFiles(StrVec& files) {
 }
 
 static StrVec& CollectNextPrevFilesIfChanged(const char* path) {
-    StrVec& files = gLastNextPrevFiles;
+    StrVec& files = gNextPrevDirCache;
 
     char* dir = path::GetDirTemp(path);
-    if (lastNextPrevFilesDir) {
-        if (path::IsSame(dir, lastNextPrevFilesDir)) {
-            // failed files could have changed
-            RemoveFailedFiles(files);
-            return files;
-        }
+    if (path::IsSame(dir, gNextPrevDir)) {
+        // failed files could have changed
+        RemoveFailedFiles(files);
+        return files;
     }
     files.Reset();
-    str::ReplaceWithCopy(&lastNextPrevFilesDir, dir);
+    str::ReplaceWithCopy(&gNextPrevDir, dir);
     DirIter di{dir};
     for (DirIterEntry* de : di) {
         files.Append(de->filePath);
@@ -3406,6 +3400,8 @@ static void OpenNextPrevFileInFolder(MainWindow* win, bool forward) {
     }
 
     WindowTab* tab = win->CurrentTab();
+    bool didRetry = false;
+again:
     const char* path = tab->filePath;
     StrVec files = CollectNextPrevFilesIfChanged(path);
     if (files.Size() < 2) {
@@ -3419,10 +3415,19 @@ static void OpenNextPrevFileInFolder(MainWindow* win, bool forward) {
     } else {
         idx = (idx + nFiles - 1) % nFiles;
     }
+    path = files[idx];
+    if (!file::Exists(path)) {
+        if (didRetry) {
+            // TODO: can I do something better?
+            return;
+        }
+        didRetry = true;
+        str::FreePtr(&gNextPrevDir); // trigger re-reading the directory
+        goto again;
+    }
 
     // TODO: check for unsaved modifications
     UpdateTabFileDisplayStateForTab(tab);
-    path = files[idx];
     // TODO: should take onFinish() callback so that if failed
     // we could automatically go to next file
     LoadArgs args(path, win);
@@ -4271,12 +4276,12 @@ static void OnFrameKeyEsc(MainWindow* win) {
         ToolbarUpdateStateForWindow(win, false);
         return;
     }
-    if (gGlobalPrefs->escToExit && CanCloseWindow(win)) {
-        CloseWindow(win, true, false);
-        return;
-    }
     if (win->presentation || win->isFullScreen) {
         ToggleFullScreen(win, win->presentation != PM_DISABLED);
+        return;
+    }
+    if (gGlobalPrefs->escToExit && CanCloseWindow(win)) {
+        CloseWindow(win, true, false);
         return;
     }
 }
@@ -5711,9 +5716,18 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
                 tab, "https://translate.google.com/?op=translate&sl=auto&tl=${userlang}&text=${selection}");
             break;
 
-        case CmdTranslateSelectionWithDeepL:
-            LaunchBrowserWithSelection(tab, "https://www.deepl.com/translator#-/${userlang}/${selection}");
-            break;
+        case CmdTranslateSelectionWithDeepL: {
+            // Note: we don't know if selected string is English but I don't know
+            // how to get deepl.com to auto-detect language
+            const char* lang = trans::GetCurrentLangCode();
+            const char* uri = "https://www.deepl.com/translator#en/${userlang}/${selection}";
+            if (str::Eq(lang, "en")) {
+                // it's pointless to translate from English to English
+                // this format will hopefully trigger auto-detection of user languge by deepl.com
+                uri = "https://www.deepl.com/translator#en/${selection}";
+            }
+            LaunchBrowserWithSelection(tab, uri);
+        } break;
 
         case CmdSearchSelectionWithGoogle:
             LaunchBrowserWithSelection(tab, "https://www.google.com/search?q=${selection}");
