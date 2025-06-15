@@ -1017,9 +1017,11 @@ void CreateToolbar(MainWindow* win) {
     win->hwndToolbar = hwndToolbar;
     SendMessageW(hwndToolbar, TB_BUTTONSTRUCTSIZE, (WPARAM)sizeof(TBBUTTON), 0);
 
-    if (!IsCurrentThemeDefault()) {
-        // without this custom draw code doesn't work
-        SetWindowTheme(hwndToolbar, L"", L"");
+    if (!gUseDarkModeLib) {
+        if (!IsCurrentThemeDefault()) {
+            // without this custom draw code doesn't work
+            SetWindowTheme(hwndToolbar, L"", L"");
+        }
     }
 
     int iconSize = SetToolbarIconsImageList(win);

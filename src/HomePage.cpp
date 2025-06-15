@@ -30,6 +30,7 @@
 #include "Translations.h"
 #include "Version.h"
 #include "Theme.h"
+#include "../ext/darkmodelib/include/DarkModeSubclass.h"
 
 #ifndef ABOUT_USE_LESS_COLORS
 #define ABOUT_LINE_OUTER_SIZE 2
@@ -395,11 +396,7 @@ static void OnPaintAbout(HWND hwnd) {
 }
 
 static void OnSizeAbout(HWND hwnd) {
-    MainWindow* win = FindMainWindowByHwnd(hwnd);
-    if (!win) {
-        ReportDebugIf(true);
-        return;
-    }
+    // TODO: do I need anything here?
 }
 
 static void CopyAboutInfoToClipboard() {
@@ -474,6 +471,9 @@ LRESULT CALLBACK WndProcAbout(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
         case WM_CREATE:
             ReportIf(gHwndAbout);
+            if (gUseDarkModeLib) {
+                DarkMode::setDarkTitleBar(hwnd);
+            }
             break;
 
         case WM_ERASEBKGND:

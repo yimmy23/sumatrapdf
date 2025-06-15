@@ -69,6 +69,7 @@
 #include "ExternalViewers.h"
 #include "AppColors.h"
 #include "Theme.h"
+#include "../ext/darkmodelib/include/DarkModeSubclass.h"
 
 #include "utils/Log.h"
 
@@ -1053,22 +1054,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
         return exitCode;
     }
 
-    if (isInstaller) {
-        if (!ExeHasInstallerResources()) {
-            ShowNotValidInstallerError();
-            return 1;
-        }
-        exitCode = RunInstaller();
-        // exit immediately. for some reason exit handlers try to
-        // pull in libmupdf.dll which we don't have access to in the installer
-        ::ExitProcess(exitCode);
-    }
-
-    if (isUninstaller) {
-        exitCode = RunUninstaller();
-        ::ExitProcess(exitCode);
-    }
-
     if (flags.updateSelfTo) {
         logf(" flags.updateSelfTo: '%s'\n", flags.updateSelfTo);
         RedirectIOToExistingConsole();
@@ -1098,6 +1083,24 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
             HandleRedirectedConsoleOnShutdown();
             ::ExitProcess(0);
         }
+    }
+
+    // must check before isInstaller becase isInstaller can be auto-deduced
+    // from -installer.exe pattern in the name, so it would ignore explit -uninstall flag
+    if (isUninstaller) {
+        exitCode = RunUninstaller();
+        ::ExitProcess(exitCode);
+    }
+
+    if (isInstaller) {
+        if (!ExeHasInstallerResources()) {
+            ShowNotValidInstallerError();
+            return 1;
+        }
+        exitCode = RunInstaller();
+        // exit immediately. for some reason exit handlers try to
+        // pull in libmupdf.dll which we don't have access to in the installer
+        ::ExitProcess(exitCode);
     }
 
     if (ForceRunningAsInstaller()) {
@@ -1144,7 +1147,9 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
     DetectExternalViewers();
 
     gRenderCache = new RenderCache();
-
+    if (gUseDarkModeLib) {
+        DarkMode::initDarkMode();
+    }
     LoadSettings();
     UpdateGlobalPrefs(flags);
     SetCurrentLang(flags.lang ? flags.lang : gGlobalPrefs->uiLanguage);

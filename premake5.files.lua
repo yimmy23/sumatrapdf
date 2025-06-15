@@ -115,8 +115,11 @@ function unrar_files()
     "hash.*",
     "headers.*",
     "isnt.*",
+    "largepage.*",
     "list.*",
     "match.*",
+    --"model.*",
+    "motw.*",
     "options.*",
     "pathfn.*",
     "qopen.*",
@@ -716,6 +719,20 @@ function uia_files()
     "DocumentProvider.*",
     "PageProvider.*",
     "TextRange.*",
+  })
+end
+
+function darkmodelib_files()
+  files_in_dir("ext/darkmodelib/src", {
+    "DarkMode.*",
+    "DarkModeSubclass.cpp",
+    "IatHook.h",
+    "StdAfx.h",
+    "UAHMenuBar.h",
+    "Version.h",
+  })
+  files_in_dir("ext/darkmodelib/include", {
+    "DarkModeSubclass.h",
   })
 end
 

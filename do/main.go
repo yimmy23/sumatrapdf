@@ -228,12 +228,10 @@ func main() {
 		flgClangFormat               bool
 		flgClean                     bool
 		flgDiff                      bool
-		flgFilesList                 bool
-		flgFileUpload                string
 		flgGenDocs                   bool
 		flgGenSettings               bool
 		flgGenWebsiteDocs            bool
-		flgLogView                   bool
+		flgRunLogView                bool
 		flgRegenPremake              bool
 		flgRunTests                  bool
 		flgTransDownload             bool
@@ -246,8 +244,6 @@ func main() {
 	)
 
 	{
-		flag.StringVar(&flgFileUpload, "file-upload", "", "upload a test file to s3 / spaces")
-		flag.BoolVar(&flgFilesList, "files-list", false, "list uploaded files in s3 / spaces")
 		flag.BoolVar(&flgRegenPremake, "premake", false, "regenerate premake*.lua files")
 		flag.BoolVar(&flgCIBuild, "ci", false, "run CI steps")
 		flag.BoolVar(&flgCIDailyBuild, "ci-daily", false, "run CI daily steps")
@@ -273,7 +269,7 @@ func main() {
 		flag.BoolVar(&flgDiff, "diff", false, "preview diff using winmerge")
 		flag.BoolVar(&flgGenSettings, "gen-settings", false, "re-generate src/Settings.h")
 		flag.StringVar(&flgUpdateVer, "update-auto-update-ver", "", "update version used for auto-update checks")
-		flag.BoolVar(&flgLogView, "logview", false, "run logview")
+		flag.BoolVar(&flgRunLogView, "logview", false, "run logview")
 		flag.BoolVar(&flgRunTests, "run-tests", false, "run test_util executable")
 		flag.BoolVar(&flgBuildLogview, "build-logview", false, "build logview-win. Use -upload to also upload it to backblaze")
 		flag.IntVar(&flgBuildNo, "build-no-info", 0, "print build number info for given build number")
@@ -303,8 +299,9 @@ func main() {
 		defer measureDuration()()
 		u.UpdateGoDeps("do", true)
 		u.UpdateGoDeps(filepath.Join("tools", "regress"), true)
-		u.UpdateGoDeps(filepath.Join("tools", "logview-cli"), true)
-		u.UpdateGoDeps(filepath.Join("tools", "logview"), true)
+		// u.UpdateGoDeps(filepath.Join("tools", "logview-cli"), true)
+		// u.UpdateGoDeps(filepath.Join("tools", "logview"), true)
+		// u.UpdateGoDeps(filepath.Join("tools", "logview-web"), true)
 		return
 	}
 
@@ -362,7 +359,6 @@ func main() {
 		if false {
 			// avoid "unused function" warnings
 			testGenUpdateTxt()
-			deleteFilesOneOff()
 		}
 		return
 	}
@@ -377,21 +373,11 @@ func main() {
 		return
 	}
 
-	if flgFileUpload != "" {
-		fileUpload(flgFileUpload)
-		return
-	}
-
 	if flgBuildLogview {
 		buildLogView()
 		if flgUpload {
 			uploadLogView()
 		}
-		return
-	}
-
-	if flgFilesList {
-		filesList()
 		return
 	}
 
@@ -482,8 +468,11 @@ func main() {
 		return
 	}
 
-	if flgLogView {
-		logView()
+	if flgRunLogView {
+		runLogViewWeb()
+		if false {
+			runLogViewWin()
+		}
 		return
 	}
 
@@ -499,7 +488,8 @@ func main() {
 	flag.Usage()
 }
 
-func logView() {
+func runLogViewWin() {
+	logf("runLogViewWin\n")
 	path := filepath.Join(logViewWinDir, "build", "bin", "logview.exe")
 	if !u.FileExists(path) {
 		logf("'%s' doesn't exist, rebuilding\n", path)
@@ -509,9 +499,23 @@ func logView() {
 		logf("rm \"%s\"\n", path)
 	}
 	cmd := exec.Command(path)
+	cmd.Dir = logViewWinDir
 	err := cmd.Start()
 	must(err)
 	logf("Started %s\n", path)
+}
+
+func runLogViewWeb() {
+	logf("runLogViewWweb\n")
+	dir := filepath.Join("tools", "logview-web")
+	cmd := exec.Command("go", "run", ".", "-run-dev")
+	cmd.Dir = dir
+	err := cmd.Start()
+	must(err)
+	logf("Started %s in %s\n", cmd.String(), dir)
+	// wait for it to finish
+	err = cmd.Wait()
+	must(err)
 }
 
 func cmdRunLoggedInDir(dir string, args ...string) {
