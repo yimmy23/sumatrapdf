@@ -116,6 +116,9 @@
     <ClCompile Include="..\ext\zlib\zutil.c">
       <Filter>ext\zlib</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\CrashHandlerNoOp.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\tools\MakeLzSA.cpp">
       <Filter>src\tools</Filter>
     </ClCompile>

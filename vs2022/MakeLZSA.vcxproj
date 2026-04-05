@@ -462,6 +462,7 @@
     <ClCompile Include="..\ext\zlib\inftrees.c" />
     <ClCompile Include="..\ext\zlib\trees.c" />
     <ClCompile Include="..\ext\zlib\zutil.c" />
+    <ClCompile Include="..\src\CrashHandlerNoOp.cpp" />
     <ClCompile Include="..\src\tools\MakeLzSA.cpp" />
     <ClCompile Include="..\src\utils\BaseUtil.cpp" />
     <ClCompile Include="..\src\utils\ByteOrderDecoder.cpp" />

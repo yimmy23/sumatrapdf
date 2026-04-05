@@ -64,10 +64,6 @@ newoption {
 -- TODO: test this option
 -- usestandardpreprocessor 'On'
 
--- TODO: try appmanifest
--- files { "hello.appxmanifest" }
--- https://github.com/premake/premake-core/pull/1750/files
-
 include("premake5.files.lua")
 
 
@@ -256,6 +252,7 @@ workspace "SumatraPDF"
     targetdir "out/dbg32"
   filter { "platforms:x86", "configurations:DebugFull" }
     targetdir "out/dbgfull32"
+  filter {}
 
   filter { "platforms:x64", "configurations:Release" }
     targetdir "out/rel64"
@@ -402,9 +399,9 @@ workspace "SumatraPDF"
     optimized_conf()
     defines { "_CRT_SECURE_NO_WARNINGS" }
     filter { 'platforms:x86' }
-    defines { "ARCH_X86_32=1", "ARCH_X86_64=0", "__SSE2__" }
+        defines { "ARCH_X86_32=1", "ARCH_X86_64=0", "__SSE2__" }
     filter { 'platforms:x64 or x64_asan' }
-    defines { "ARCH_X86_32=0", "ARCH_X86_64=1" }
+        defines { "ARCH_X86_32=0", "ARCH_X86_64=1" }
     filter {}
     disablewarnings { "4057", "4090", "4100", "4152", "4201", "4244", "4245", "4456", "4457", "4701", "4703", "4706", "4819", "4996", "5287" }
     includedirs { "ext/dav1d/include/compat/msvc", "ext/dav1d", "ext/dav1d/include" }
@@ -518,13 +515,13 @@ workspace "SumatraPDF"
       "HAVE_FREETYPE",
     }
     filter "configurations:Debug or DebugFull"
-    defines {
-      "HAVE_ATEXIT",
-      "hb_malloc_impl=sumatra_hb_malloc",
-      "hb_calloc_impl=sumatra_hb_calloc",
-      "hb_realloc_impl=sumatra_hb_realloc",
-      "hb_free_impl=sumatra_hb_free"
-    }
+        defines {
+          "HAVE_ATEXIT",
+          "hb_malloc_impl=sumatra_hb_malloc",
+          "hb_calloc_impl=sumatra_hb_calloc",
+          "hb_realloc_impl=sumatra_hb_realloc",
+          "hb_free_impl=sumatra_hb_free"
+        }
     filter "configurations:Release or ReleaseAnalyze"
       defines {
         "hb_malloc_impl=fz_hb_malloc",
@@ -562,7 +559,6 @@ workspace "SumatraPDF"
 
     function fonts()
       files {
-
         "mupdf/resources/fonts/urw/Dingbats.cff",
         "mupdf/resources/fonts/urw/NimbusMonoPS-Regular.cff",
         "mupdf/resources/fonts/urw/NimbusMonoPS-Italic.cff",
@@ -593,63 +589,75 @@ workspace "SumatraPDF"
       }
 
       filter { 'files:**.cff', 'platforms:x86' }
-      buildmessage 'bin2coff %{file.basename}.cff (x86)'
-      buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
-      buildcommands {
-        '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_cff x86'
-      }
+          buildmessage 'bin2coff %{file.basename}.cff (x86)'
+          buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
+          buildcommands {
+            '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_cff x86'
+          }
+      filter {}
+
       filter { 'files:**.cff', 'platforms:x64 or x64_asan' }
-      buildmessage 'bin2coff %{file.basename}.cff (x64)'
-      buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
-      buildcommands {
-        '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_cff x86_64'
-      }
+          buildmessage 'bin2coff %{file.basename}.cff (x64)'
+          buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
+          buildcommands {
+            '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_cff x86_64'
+          }
+      filter {}
+
       filter { 'files:**.cff', 'platforms:arm64' }
-      buildmessage 'bin2coff %{file.basename}.cff (arm64)'
-      buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
-      buildcommands {
-        '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_cff ARM64'
-      }
+          buildmessage 'bin2coff %{file.basename}.cff (arm64)'
+          buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
+          buildcommands {
+            '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_cff ARM64'
+          }
       filter {}
 
       filter { 'files:**.ttf', 'platforms:x86' }
-      buildmessage 'bin2coff %{file.basename}.ttf (x86)'
-      buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
-      buildcommands {
-        '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_ttf x86'
-      }
+          buildmessage 'bin2coff %{file.basename}.ttf (x86)'
+          buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
+          buildcommands {
+            '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_ttf x86'
+          }
+      filter {}
+
       filter { 'files:**.ttf', 'platforms:x64 or x64_asan' }
-      buildmessage 'bin2coff %{file.basename}.ttf (x64)'
-      buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
-      buildcommands {
-        '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_ttf x86_64'
-      }
+          buildmessage 'bin2coff %{file.basename}.ttf (x64)'
+          buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
+          buildcommands {
+            '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_ttf x86_64'
+          }
+      filter {}
+
       filter { 'files:**.ttf', 'platforms:arm64' }
-      buildmessage 'bin2coff %{file.basename}.ttf (arm64)'
-      buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
-      buildcommands {
-        '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_ttf ARM64'
-      }
+          buildmessage 'bin2coff %{file.basename}.ttf (arm64)'
+          buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
+          buildcommands {
+            '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_ttf ARM64'
+          }
       filter {}
 
       filter { 'files:**.otf', 'platforms:x86' }
-      buildmessage 'bin2coff %{file.basename}.otf (x86)'
-      buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
-      buildcommands {
-        '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_otf x86'
-      }
+          buildmessage 'bin2coff %{file.basename}.otf (x86)'
+          buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
+          buildcommands {
+            '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_otf x86'
+          }
+      filter {}
+
       filter { 'files:**.otf', 'platforms:x64 or x64_asan' }
-      buildmessage 'bin2coff %{file.basename}.otf (x64)'
-      buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
-      buildcommands {
-        '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_otf x86_64'
-      }
+          buildmessage 'bin2coff %{file.basename}.otf (x64)'
+          buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
+          buildcommands {
+            '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_otf x86_64'
+          }
+      filter {}
+
       filter { 'files:**.otf', 'platforms:arm64' }
-      buildmessage 'bin2coff %{file.basename}.otf (arm64)'
-      buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
-      buildcommands {
-        '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_otf ARM64'
-      }
+          buildmessage 'bin2coff %{file.basename}.otf (arm64)'
+          buildoutputs { '%{cfg.objdir}/%{file.basename}.obj' }
+          buildcommands {
+            '..\\bin\\bin2coff.exe "%{file.relpath}" "%{cfg.objdir}/%{file.basename}.obj" _binary_%{file.basename}_otf ARM64'
+          }
       filter {}
     end
 
@@ -668,7 +676,7 @@ workspace "SumatraPDF"
     defines { "HAVE_LIBARCHIVE", "LIBARCHIVE_STATIC" }
 
     filter { "platforms:arm64" }
-    defines { "ARCH_HAS_NEON=1" }
+        defines { "ARCH_HAS_NEON=1" }
     filter {}
 
     disablewarnings {
@@ -748,6 +756,25 @@ workspace "SumatraPDF"
     includedirs { "src" }
     bin2coff_files()
     links { "gdiplus", "comctl32", "shlwapi", "Version" }
+
+--[[
+  project "MakeLZSA"
+    kind "ConsoleApp"
+    language "C++"
+    cppdialect "C++latest"
+    mixed_dbg_rel_conf()
+
+    makelzsa_files()
+    disablewarnings { "4131", "4244", "4245", "4267", "4996" }
+    includedirs { "src", "ext/lzma/C" }
+
+    -- for zlib
+    disablewarnings { "4131", "4244", "4245", "4267", "4996" }
+    zlib_files()
+    uses_zlib()
+
+    links { "shlwapi", "version", "comctl32", "wininet", "Crypt32" }
+--]]
 
   project "PdfFilter2"
     kind "SharedLib"
