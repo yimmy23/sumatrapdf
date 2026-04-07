@@ -1334,7 +1334,6 @@ function pdf_preview2_files()
 
   files_in_dir("src", {
     "CrashHandlerNoOp.cpp",
-    "mui/Mui.*",
     "PreviewPipe.*",
     "RegistryPreview.*",
     "SumatraConfig.*",

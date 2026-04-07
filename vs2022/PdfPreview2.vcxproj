@@ -889,7 +889,6 @@
     <ClInclude Include="..\src\PreviewPipe.h" />
     <ClInclude Include="..\src\RegistryPreview.h" />
     <ClInclude Include="..\src\SumatraConfig.h" />
-    <ClInclude Include="..\src\mui\Mui.h" />
     <ClInclude Include="..\src\utils\BaseUtil.h" />
     <ClInclude Include="..\src\utils\ColorUtil.h" />
     <ClInclude Include="..\src\utils\Dpi.h" />
@@ -909,7 +908,6 @@
     <ClCompile Include="..\src\PreviewPipe.cpp" />
     <ClCompile Include="..\src\RegistryPreview.cpp" />
     <ClCompile Include="..\src\SumatraConfig.cpp" />
-    <ClCompile Include="..\src\mui\Mui.cpp" />
     <ClCompile Include="..\src\previewer2\PdfPreviewDll.cpp" />
     <ClCompile Include="..\src\utils\BaseUtil.cpp" />
     <ClCompile Include="..\src\utils\ColorUtil.cpp" />
