@@ -18,9 +18,6 @@
     <ClInclude Include="..\src\mui\Mui.h">
       <Filter>mui</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\previewer2\PdfPreviewBase.h">
-      <Filter>previewer2</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\utils\BaseUtil.h">
       <Filter>utils</Filter>
     </ClInclude>
@@ -69,9 +66,6 @@
     <ClCompile Include="..\src\mui\Mui.cpp">
       <Filter>mui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\previewer2\PdfPreview.cpp">
-      <Filter>previewer2</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\previewer2\PdfPreviewDll.cpp">
       <Filter>previewer2</Filter>
     </ClCompile>
@@ -114,10 +108,5 @@
     <ClCompile Include="..\src\utils\WinUtil.cpp">
       <Filter>utils</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="..\src\previewer2\PdfPreview.rc">
-      <Filter>previewer2</Filter>
-    </ResourceCompile>
   </ItemGroup>
 </Project>

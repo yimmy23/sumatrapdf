@@ -854,6 +854,9 @@
     <None Include="..\cmd\clean.ts">
       <Filter>cmd</Filter>
     </None>
+    <None Include="..\cmd\clear-thumbnail-cache.ts">
+      <Filter>cmd</Filter>
+    </None>
     <None Include="..\cmd\compress-docs-images.ts">
       <Filter>cmd</Filter>
     </None>

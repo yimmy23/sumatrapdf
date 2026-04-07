@@ -1601,6 +1601,7 @@ cd ../out/rel64_prefast_asan &amp; ..\..\bin\MakeLZSA.exe InstallerData.dat PdfF
     <None Include="..\cmd\check-access-keys.ts" />
     <None Include="..\cmd\clang-tidy.ts" />
     <None Include="..\cmd\clean.ts" />
+    <None Include="..\cmd\clear-thumbnail-cache.ts" />
     <None Include="..\cmd\compress-docs-images.ts" />
     <None Include="..\cmd\cppcheck.ts" />
     <None Include="..\cmd\diff.ts" />
