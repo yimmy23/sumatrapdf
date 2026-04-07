@@ -555,6 +555,7 @@ class PageRenderer {
 
 static LRESULT OnPaint(HWND hwnd) {
     Rect rect = ClientRect(hwnd);
+    logf("OnPaint: clientRect=%dx%d\n", rect.dx, rect.dy);
     DoubleBuffer buffer(hwnd, rect);
     HDC hdc = buffer.GetDC();
     HBRUSH brushBg = CreateSolidBrush(kColWindowBg);
@@ -566,16 +567,22 @@ static LRESULT OnPaint(HWND hwnd) {
     if (preview && preview->renderer) {
         int pageNo = GetScrollPos(hwnd, SB_VERT);
         RectF page = preview->renderer->GetPageRect(pageNo);
+        logf("OnPaint: pageNo=%d, pageRect=%.1fx%.1f\n", pageNo, page.dx, page.dy);
         if (!page.IsEmpty()) {
             rect.Inflate(-kPreviewMargin, -kPreviewMargin);
             float zoom = (float)std::min(rect.dx / page.dx, rect.dy / page.dy) - 0.001f;
             Rect onScreen = RectF((float)rect.x, (float)rect.y, (float)page.dx * zoom, (float)page.dy * zoom).Round();
             onScreen.Offset((rect.dx - onScreen.dx) / 2, (rect.dy - onScreen.dy) / 2);
+            logf("OnPaint: zoom=%.3f, onScreen=%d,%d,%dx%d\n", zoom, onScreen.x, onScreen.y, onScreen.dx, onScreen.dy);
 
             RECT rcPage = ToRECT(onScreen);
             FillRect(hdc, &rcPage, brushWhite);
             preview->renderer->Render(hdc, onScreen, pageNo, zoom);
+        } else {
+            logf("OnPaint: page rect is empty\n");
         }
+    } else {
+        logf("OnPaint: no preview or no renderer\n");
     }
 
     DeleteObject(brushBg);
@@ -690,11 +697,16 @@ IFACEMETHODIMP PdfPreview::DoPreview() {
     wcex.style = CS_HREDRAW | CS_VREDRAW;
     RegisterClassEx(&wcex);
 
-    m_hwnd = CreateWindow(wcex.lpszClassName, nullptr, WS_CHILD | WS_VSCROLL | WS_VISIBLE, m_rcParent.x, m_rcParent.x,
+    logf("PdfPreview::DoPreview: parent hwnd=%p, rect=%d,%d,%d,%d\n", m_hwndParent, m_rcParent.x, m_rcParent.y,
+         m_rcParent.dx, m_rcParent.dy);
+
+    m_hwnd = CreateWindow(wcex.lpszClassName, nullptr, WS_CHILD | WS_VSCROLL | WS_VISIBLE, m_rcParent.x, m_rcParent.y,
                           m_rcParent.dx, m_rcParent.dy, m_hwndParent, nullptr, nullptr, nullptr);
     if (!m_hwnd) {
+        logf("PdfPreview::DoPreview: CreateWindow failed, error=%d\n", (int)GetLastError());
         return HRESULT_FROM_WIN32(GetLastError());
     }
+    logf("PdfPreview::DoPreview: created window hwnd=%p\n", m_hwnd);
 
     this->renderer = nullptr;
     SetWindowLongPtr(m_hwnd, GWLP_USERDATA, (LONG_PTR)this);
@@ -703,6 +715,9 @@ IFACEMETHODIMP PdfPreview::DoPreview() {
     if (InitPreviewSession() && pipeSession) {
         pageCount = pipeSession->pageCount;
         this->renderer = new PageRenderer(pipeSession, m_hwnd);
+        logf("PdfPreview::DoPreview: session ok, pageCount=%d\n", pageCount);
+    } else {
+        logf("PdfPreview::DoPreview: InitPreviewSession failed\n");
     }
 
     SCROLLINFO si{};
@@ -715,6 +730,7 @@ IFACEMETHODIMP PdfPreview::DoPreview() {
     SetScrollInfo(m_hwnd, SB_VERT, &si, TRUE);
 
     ShowWindow(m_hwnd, SW_SHOW);
+    logf("PdfPreview::DoPreview: done, returning S_OK\n");
     return S_OK;
 }
 
